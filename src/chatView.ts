@@ -1,10 +1,10 @@
-import { FileSystemAdapter, ItemView, MarkdownRenderer, Menu, Notice, setIcon, TFile, ViewStateResult, WorkspaceLeaf } from 'obsidian';
+import { Component, ItemView, MarkdownRenderer, Menu, Notice, setIcon, TFile, ViewStateResult, WorkspaceLeaf } from 'obsidian';
 import type { CanUseTool, PermissionResult, SDKAssistantMessageError, SDKMessage, SlashCommand } from '@anthropic-ai/claude-agent-sdk';
 import fs from 'fs';
 import path from 'path';
-import { ClaudeError, errorText, findClaude, runTurn, type Turn } from './claude';
+import { ClaudeError, errorText, notFoundMessage, runTurn, type Turn } from './claude';
 import type VaultSidekick from './main';
-import type { Settings } from './settings';
+import { APPROVAL_MODES, type Settings } from './settings';
 import { withSkillNote } from './skills';
 import { vaultRelative } from './vaultPath';
 
@@ -16,7 +16,6 @@ const CONNECTORS_URL = 'https://claude.ai/settings/connectors';
 
 type PermissionOptions = Parameters<CanUseTool>[2];
 const OPENABLE = /\.(md|canvas|base)$/i; // file types Obsidian opens itself
-const APPROVAL_MODES: Record<Settings['approvalMode'], string> = { ask: 'Ask before edits', auto: 'Auto-approve edits' };
 
 type Choice = 'once' | 'chat' | 'deny';
 
@@ -25,6 +24,7 @@ interface TextBlock {
 	text: string;
 	timer?: number;
 	seq: number;
+	component?: Component; // owns the shown render's children; unloaded when a newer render replaces it
 }
 
 export class ChatView extends ItemView {
@@ -221,7 +221,7 @@ export class ChatView extends ItemView {
 		if (this.promptEl.value === '/' && !this.plugin.slashCommands.length) {
 			new Notice(
 				this.plugin.settings.skills
-					? 'No skills loaded yet. Click "Test connection" in the Vault Sidekick settings to load them.'
+					? 'No skills found. If you just added some, click "Test connection" in the Vault Sidekick settings to load them.'
 					: 'To use your skills, turn on "Skills and plugins" in the Vault Sidekick settings.',
 			);
 		}
@@ -332,9 +332,7 @@ export class ChatView extends ItemView {
 		};
 		const menu = new Menu();
 		menu.addItem((i) => i.setTitle('Default').setChecked(!s.model).onClick(() => pick('')));
-		for (const m of s.models) {
-			if (m.value !== 'default') menu.addItem((i) => i.setTitle(m.displayName).setChecked(s.model === m.value).onClick(() => pick(m.value)));
-		}
+		for (const m of s.models) menu.addItem((i) => i.setTitle(m.displayName).setChecked(s.model === m.value).onClick(() => pick(m.value)));
 		menu.addSeparator();
 		menu.addItem((i) =>
 			i
@@ -377,48 +375,48 @@ export class ChatView extends ItemView {
 		chat.messagesEl.scrollTop = chat.messagesEl.scrollHeight;
 
 		const s = this.plugin.settings;
-		const exe = findClaude(s.claudePath);
+		const exe = this.plugin.claudeExe();
 		if (!exe) {
-			if (s.claudePath) this.addError(`Claude Code can't be started from "${s.claudePath}". Point the Executable setting at claude.exe (not a .cmd shim), or clear it to auto-detect.`, { settings: true });
-			else this.addError('Claude Code was not found. Install it from https://claude.com/claude-code, run `claude` once in a terminal to log in, or set its path in settings.', { settings: true });
+			this.addError(notFoundMessage(s.claudePath), { settings: true });
 			this.finishTurn();
 			this.refreshComposer();
 			return;
 		}
 
-		const vault = (this.app.vault.adapter as FileSystemAdapter).getBasePath(); // desktop-only plugin
+		const vault = this.plugin.vaultPath;
 		this.vault = vault;
 		this.shownThisTurn.clear();
 		this.editTargets.clear();
 		this.stopping = false;
-		this.turn = runTurn({
-			prompt: withSkillNote(text, this.plugin.slashCommands),
-			cwd: vault,
-			exe,
-			resume: chat.sessionId,
-			model: s.model || undefined,
-			tools: [
-				'Read',
-				'Glob',
-				'Grep',
-				'Edit',
-				'Write',
-				...(s.allowBash ? ['Bash'] : []),
-				...(s.allowWeb ? ['WebFetch', 'WebSearch'] : []),
-				...(s.skills ? ['Skill'] : []),
-			],
-			ext: s,
-			protectedDirs: [this.app.vault.configDir, '.git', '.claude'],
-			canUseTool: (tool, input, opts) => this.canUseTool(tool, input, opts, vault),
-			onMessage: (m) => {
-				if (m.type === 'system' && m.subtype === 'init') chat.sessionId = m.session_id;
-				this.onMessage(m);
-			},
-		});
-		this.setBusy(true);
-		this.setWorking('Thinking…');
 		try {
-			await this.turn.done;
+			const turn = runTurn({
+				prompt: withSkillNote(text, this.plugin.slashCommands),
+				cwd: vault,
+				exe,
+				resume: chat.sessionId,
+				model: s.model || undefined,
+				tools: [
+					'Read',
+					'Glob',
+					'Grep',
+					'Edit',
+					'Write',
+					...(s.allowBash ? ['Bash'] : []),
+					...(s.allowWeb ? ['WebFetch', 'WebSearch'] : []),
+					...(s.skills ? ['Skill'] : []),
+				],
+				ext: s,
+				protectedDirs: [this.app.vault.configDir, '.git', '.claude'],
+				canUseTool: (tool, input, opts) => this.canUseTool(tool, input, opts, vault),
+				onMessage: (m) => {
+					if (m.type === 'system' && m.subtype === 'init') chat.sessionId = m.session_id;
+					this.onMessage(m);
+				},
+			});
+			this.turn = turn;
+			this.setBusy(true);
+			this.setWorking('Thinking…');
+			await turn.done;
 		} catch (e) {
 			// Launch failures, crashes: show the SDK's message with Claude Code's stderr behind "Details".
 			if (!this.stopping) this.addError(errorText(e), { details: e instanceof ClaudeError ? e.details : '', settings: true });
@@ -490,6 +488,10 @@ export class ChatView extends ItemView {
 				this.addToolRow(block.id, block.name, input);
 				if (EDIT_TOOLS.has(block.name)) this.trackEdit(block.id, input.file_path);
 			}
+		} else if (m.type === 'system' && (m.subtype === 'local_command_output' || m.subtype === 'model_refusal_no_fallback')) {
+			// Not streamed: output of commands like /usage, and refusals.
+			this.appendText(m.content);
+			this.endText();
 		} else if (m.type === 'user' && Array.isArray(m.message.content)) {
 			for (const block of m.message.content) {
 				if (block.type !== 'tool_result') continue;
@@ -512,7 +514,7 @@ export class ChatView extends ItemView {
 			} else if (m.subtype !== 'success' && m.startup_failure_reason === 'cli_version_too_old') {
 				this.addError('Your Claude Code is too old for this plugin. Run `claude update` in a terminal.', { details: raw });
 			} else {
-				this.addError(raw);
+				this.addError(raw || `Claude Code reported an error (${m.subtype}).`);
 			}
 		}
 	}
@@ -595,8 +597,15 @@ export class ChatView extends ItemView {
 		block.timer = undefined;
 		const seq = ++block.seq;
 		const tmp = createDiv();
-		await MarkdownRenderer.render(this.app, block.text, tmp, '', this.chat.component);
-		if (seq !== block.seq) return; // a newer render superseded this one
+		const parent = this.chat.component;
+		const component = parent.addChild(new Component());
+		await MarkdownRenderer.render(this.app, block.text, tmp, '', component);
+		if (seq !== block.seq) {
+			parent.removeChild(component); // a newer render superseded this one
+			return;
+		}
+		if (block.component) parent.removeChild(block.component);
+		block.component = component;
 		this.keepPinned(() => block.el.replaceChildren(...Array.from(tmp.childNodes)));
 	}
 

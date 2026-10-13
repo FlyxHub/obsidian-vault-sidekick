@@ -16,7 +16,7 @@ import { denyReason } from './vaultPath';
 const SYSTEM_APPEND = `You are running as a chat panel inside Obsidian. The working directory is the root of the user's Obsidian vault, and its Markdown files are the user's notes.
 - Refer to notes as [[wikilinks]] (vault-relative path, no .md extension) so the user can click them.
 - Follow the vault's existing conventions (frontmatter, tags, folders) when creating or editing notes.
-- You can only access files inside the vault, and you cannot modify .obsidian/, .git/ or .claude/.`;
+- You can only access files inside the vault, and you cannot modify `;
 
 /** An error with optional raw output (stderr) to show behind a "Details" toggle. */
 export class ClaudeError extends Error {
@@ -47,6 +47,13 @@ export function findClaude(configured = ''): string | undefined {
 	} catch {
 		return undefined; // not on PATH
 	}
+}
+
+/** Why findClaude came up empty, for the configured path ('' = auto-detect). */
+export function notFoundMessage(configured: string): string {
+	return configured
+		? `Claude Code can't be started from "${configured}". Point the Executable setting at claude.exe (not a .cmd shim), or clear it to auto-detect.`
+		: 'Claude Code was not found. Install it from https://claude.com/claude-code, run `claude` once in a terminal to log in, or set its path in settings.';
 }
 
 /** What the user's own Claude Code setup may add to a session. */
@@ -206,7 +213,11 @@ export function runTurn(o: {
 				],
 			},
 			includePartialMessages: true,
-			systemPrompt: { type: 'preset', preset: 'claude_code', append: SYSTEM_APPEND + vaultInstructions(o.cwd) },
+			systemPrompt: {
+				type: 'preset',
+				preset: 'claude_code',
+				append: `${SYSTEM_APPEND}${o.protectedDirs.map((d) => `${d}/`).join(', ')}.${vaultInstructions(o.cwd)}`,
+			},
 		},
 	});
 

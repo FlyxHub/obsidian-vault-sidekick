@@ -1,6 +1,6 @@
 {
 	"name": "vault-sidekick",
-	"version": "1.0.1",
+	"version": "1.0.2",
 	"description": "Chat with Claude (via your local Claude Code) inside Obsidian.",
 	"main": "main.js",
 	"type": "module",

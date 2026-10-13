@@ -14,6 +14,7 @@ fs.mkdirSync(path.join(vault, '.obsidian'));
 fs.mkdirSync(outside);
 fs.writeFileSync(path.join(vault, 'Notes', 'a.md'), '# a');
 fs.symlinkSync(outside, path.join(vault, 'escape'), 'junction'); // junction inside the vault pointing out
+fs.symlinkSync(path.join(outside, 'missing'), path.join(vault, 'dangling'), 'junction'); // points out, at nothing yet
 
 const deny = (tool: string, input: Record<string, unknown>) => denyReason(tool, input, vault, ['.obsidian', '.git', '.claude']);
 
@@ -25,6 +26,7 @@ test('inside the vault is allowed', () => {
 	assert.equal(deny('Grep', { pattern: '\\.\\./', path: 'Notes', glob: '*.md' }), undefined);
 	assert.equal(deny('Read', { file_path: '.obsidian/app.json' }), undefined); // reading config is fine
 	assert.equal(deny('Write', { file_path: '.obsidianx/a.md' }), undefined); // lookalike name isn't protected
+	assert.equal(deny('mcp__github__get_file_contents', { path: '/README.md' }), undefined); // connector paths aren't local
 });
 
 test('outside the vault is denied', () => {
@@ -33,6 +35,8 @@ test('outside the vault is denied', () => {
 	assert.ok(deny('Read', { file_path: '~/x.md' }));
 	assert.ok(deny('Write', { file_path: 'escape/x.md' }));
 	assert.ok(deny('Edit', { file_path: path.join(vault, 'escape', 'new', 'y.md') }));
+	assert.ok(deny('Write', { file_path: 'dangling/x.md' }));
+	assert.ok(deny('Glob', { pattern: '{..,x}/**/*.md' }));
 	assert.ok(deny('Grep', { pattern: 'x', path: os.homedir() }));
 	assert.ok(deny('Glob', { pattern: '../**/*.md' }));
 	assert.ok(deny('Glob', { pattern: 'C:/Users/**' }));

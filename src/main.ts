@@ -1,7 +1,8 @@
 import { addIcon, Component, FileSystemAdapter, FileView, Notice, Plugin, TFile, WorkspaceLeaf } from 'obsidian';
 import type { McpServerStatus, SlashCommand } from '@anthropic-ai/claude-agent-sdk';
+import fs from 'fs';
 import { ChatView, VIEW_TYPE } from './chatView';
-import { describeLogin, errorText, findClaude, testConnection } from './claude';
+import { describeLogin, errorText, findClaude, notFoundMessage, testConnection } from './claude';
 import { ClaudeSettingTab, DEFAULT_SETTINGS, type Settings } from './settings';
 
 // Our own eight-spoke asterisk (echoing the ✻ glyph in the chat), not Anthropic's logo.
@@ -23,6 +24,8 @@ export default class VaultSidekick extends Plugin {
 	slashCommands: SlashCommand[] = [];
 	connectorList: McpServerStatus[] = [];
 	private editLeaf?: WorkspaceLeaf; // the dedicated tab for autoOpen: 'reuse'
+	private found?: { configured: string; exe: string };
+	private checks = 0; // only the latest checkConnection may apply its results
 
 	async onload() {
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, (await this.loadData()) as Partial<Settings> | null);
@@ -53,23 +56,35 @@ export default class VaultSidekick extends Plugin {
 	/** Starts Claude Code to check its login and refresh the models, skills and connectors; returns a one-line status. */
 	async checkConnection(): Promise<string> {
 		const s = this.settings;
-		const exe = findClaude(s.claudePath);
-		if (!exe) {
-			return s.claudePath
-				? `✗ Not usable: ${s.claudePath}. Point this at claude.exe (not a .cmd shim).`
-				: '✗ Claude Code not found. Install it from https://claude.com/claude-code, or enter the path to claude.exe.';
-		}
+		const exe = this.claudeExe();
+		if (!exe) return `✗ ${notFoundMessage(s.claudePath)}`;
+		const check = ++this.checks;
 		try {
-			const info = await testConnection(exe, (this.app.vault.adapter as FileSystemAdapter).getBasePath(), s); // desktop-only plugin
-			this.slashCommands = info.commands;
-			this.connectorList = info.connectors;
-			s.models = info.models.map(({ value, displayName }) => ({ value, displayName }));
-			await this.saveSettings();
+			const info = await testConnection(exe, this.vaultPath, s);
+			if (check === this.checks) {
+				this.slashCommands = info.commands;
+				this.connectorList = info.connectors;
+				s.models = info.models.filter((m) => m.value !== 'default').map(({ value, displayName }) => ({ value, displayName }));
+				await this.saveSettings();
+			}
 			const login = describeLogin(info.account);
 			return login ? `✓ ${info.version} · logged in with ${login}` : `✗ ${info.version} found, but not logged in. Open a terminal, run \`claude\`, and use /login.`;
 		} catch (e) {
 			return `✗ Could not start Claude Code: ${errorText(e)}`;
 		}
+	}
+
+	/** findClaude, cached: auto-detect can shell out to `where`, which blocks the UI. */
+	claudeExe(): string | undefined {
+		const configured = this.settings.claudePath;
+		if (this.found?.configured === configured && fs.existsSync(this.found.exe)) return this.found.exe;
+		const exe = findClaude(configured);
+		this.found = exe ? { configured, exe } : undefined;
+		return exe;
+	}
+
+	get vaultPath() {
+		return (this.app.vault.adapter as FileSystemAdapter).getBasePath(); // desktop-only plugin
 	}
 
 	// app.setting isn't in the public API, but it's the only way to open a plugin's settings tab.

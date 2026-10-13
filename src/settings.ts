@@ -16,6 +16,8 @@ export interface Settings {
 	autoOpen: 'off' | 'reuse' | 'new';
 }
 
+export const APPROVAL_MODES: Record<Settings['approvalMode'], string> = { ask: 'Ask before edits', auto: 'Auto-approve edits' };
+
 export const DEFAULT_SETTINGS: Settings = {
 	placed: false,
 	claudePath: '',
@@ -50,7 +52,7 @@ export class ClaudeSettingTab extends PluginSettingTab {
 	getSettingDefinitions(): SettingDefinitionItem[] {
 		const s = this.plugin.settings;
 		const models: Record<string, string> = { '': 'Default' };
-		for (const m of s.models) if (m.value !== 'default') models[m.value] = m.displayName;
+		for (const m of s.models) models[m.value] = m.displayName;
 		if (s.model && !(s.model in models)) models[s.model] = s.model;
 		const toggle = (key: keyof Settings, name: string, desc: string): SettingDefinition => ({ name, desc, control: { type: 'toggle', key } });
 
@@ -101,7 +103,7 @@ export class ClaudeSettingTab extends PluginSettingTab {
 					{
 						name: 'Approval mode',
 						desc: `Reading and searching notes never asks. Writes to ${this.app.vault.configDir}/, .git/ and .claude/, and anything outside the vault, are always blocked.`,
-						control: { type: 'dropdown', key: 'approvalMode', options: { ask: 'Ask before edits', auto: 'Auto-approve edits' } },
+						control: { type: 'dropdown', key: 'approvalMode', options: APPROVAL_MODES },
 					},
 					toggle('allowBash', 'Allow shell commands (Bash)', 'Always asks first, even with auto-approve. Commands are not confined to the vault. Needs Git for Windows.'),
 					toggle('allowWeb', 'Allow web access', 'WebFetch and WebSearch. Always asks first.'),
