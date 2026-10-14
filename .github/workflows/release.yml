@@ -1,4 +1,4 @@
-# Builds the plugin and creates a draft GitHub release when a version tag is pushed.
+# Builds the plugin and publishes a GitHub release when a version tag is pushed.
 # The tag must equal the version in manifest.json, with no "v" prefix (Obsidian requires this).
 name: Release
 
@@ -36,7 +36,7 @@ jobs:
             main.js
             styles.css
 
-      - name: Create draft release
+      - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" --draft --title "$GITHUB_REF_NAME" --generate-notes main.js manifest.json styles.css
+        run: gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes main.js manifest.json styles.css
