@@ -185,7 +185,8 @@ export class ChatView extends ItemView {
 		const s = this.plugin.settings;
 		this.chatTitleEl.setText(this.chat.title ?? 'New chat');
 		const hour = new Date().getHours();
-		this.greetingEl.setText(hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening');
+		const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+		this.greetingEl.setText(s.name.trim() ? `${greeting}, ${s.name.trim()}` : greeting);
 		this.promptEl.placeholder = this.chat.messagesEl.childElementCount ? 'Reply to Claude…' : 'How can I help you today?';
 		this.chipLabel(this.modeEl, APPROVAL_MODES[s.approvalMode]);
 		const on = this.plugin.connectorList.filter((c) => c.status === 'connected' && !s.disabledConnectors.includes(c.name)).length;

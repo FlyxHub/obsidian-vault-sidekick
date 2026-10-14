@@ -14,6 +14,7 @@ export interface Settings {
 	disabledConnectors: string[]; // switched off from the composer's connector menu
 	skills: boolean;
 	autoOpen: 'off' | 'reuse' | 'new';
+	name: string; // '' = greet without a name
 }
 
 export const APPROVAL_MODES: Record<Settings['approvalMode'], string> = { ask: 'Ask before edits', auto: 'Auto-approve edits' };
@@ -30,6 +31,7 @@ export const DEFAULT_SETTINGS: Settings = {
 	disabledConnectors: [],
 	skills: true,
 	autoOpen: 'reuse',
+	name: '',
 };
 
 export class ClaudeSettingTab extends PluginSettingTab {
@@ -133,6 +135,17 @@ export class ClaudeSettingTab extends PluginSettingTab {
 						name: 'Open notes Claude edits',
 						desc: 'Shows each note as Claude edits or creates it, without moving your cursor out of the chat.',
 						control: { type: 'dropdown', key: 'autoOpen', options: { off: 'Off', reuse: 'Reuse one tab', new: 'New tab each time' } },
+					},
+				],
+			},
+			{
+				type: 'group',
+				heading: 'Chat',
+				items: [
+					{
+						name: 'Your name',
+						desc: 'Used in the greeting of a new chat. Leave empty for no name.',
+						control: { type: 'text', key: 'name', placeholder: 'Name' },
 					},
 				],
 			},
