@@ -1,9 +1,10 @@
-import { Component, ItemView, MarkdownRenderer, Menu, Notice, setIcon, TFile, ViewStateResult, WorkspaceLeaf } from 'obsidian';
+import { Component, ItemView, loadPrism, MarkdownRenderer, Menu, Notice, setIcon, TFile, ViewStateResult, WorkspaceLeaf } from 'obsidian';
 import type { CanUseTool, PermissionResult, SDKAssistantMessageError, SDKMessage, SlashCommand } from '@anthropic-ai/claude-agent-sdk';
 import fs from 'fs';
 import path from 'path';
 import { ClaudeError, errorText, notFoundMessage, runTurn, type Turn } from './claude';
 import type VaultSidekick from './main';
+import { inertMarkdown, MARK, type Code } from './replyMarkdown';
 import { APPROVAL_MODES, type Settings } from './settings';
 import { withSkillNote } from './skills';
 import { vaultRelative } from './vaultPath';
@@ -600,7 +601,9 @@ export class ChatView extends ItemView {
 		const tmp = createDiv();
 		const parent = this.chat.component;
 		const component = parent.addChild(new Component());
-		await MarkdownRenderer.render(this.app, block.text, tmp, '', component);
+		const { markdown, code } = inertMarkdown(block.text);
+		await MarkdownRenderer.render(this.app, markdown, tmp, '', component);
+		await restoreCode(tmp, code);
 		if (seq !== block.seq) {
 			parent.removeChild(component); // a newer render superseded this one
 			return;
@@ -791,6 +794,40 @@ function renderPermissionDetails(el: HTMLElement, tool: string, input: Record<st
 	} else if (tool !== 'WebFetch' && tool !== 'WebSearch') {
 		el.createEl('pre', { text: JSON.stringify(input, null, 2) });
 	}
+}
+
+/** Puts the code inertMarkdown() took out back into a rendered reply, as text no plugin has seen. */
+async function restoreCode(el: HTMLElement, code: Code[]) {
+	const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+	const marked: Text[] = [];
+	while (walker.nextNode()) if (MARK.test((walker.currentNode as Text).data)) marked.push(walker.currentNode as Text);
+	for (const node of marked) {
+		const parts = node.data.split(new RegExp(MARK.source)); // odd entries are code numbers
+		const nodes = parts.map((p, i) => (i % 2 ? codeEl(code[Number(p)] ?? { text: '' }) : p));
+		node.replaceWith(...nodes);
+		for (const pre of nodes) {
+			if (typeof pre === 'string' || pre.tagName !== 'PRE') continue;
+			// A block alone in a paragraph (or in an indented code block) takes that element's place.
+			let host: HTMLElement = pre;
+			while (host.parentElement && host.parentElement !== el && /^(P|PRE|CODE)$/.test(host.parentElement.tagName) && host.parentElement.textContent?.trim() === pre.textContent?.trim())
+				host = host.parentElement;
+			if (host !== pre) host.replaceWith(pre);
+		}
+	}
+	const blocks = el.querySelectorAll<HTMLElement>('pre > code[class^="language-"]');
+	if (!blocks.length) return;
+	const prism = await loadPrism();
+	blocks.forEach((b) => prism.highlightElement(b));
+}
+
+function codeEl(c: Code): HTMLElement {
+	if (c.lang === undefined) return createEl('code', { text: c.text });
+	const pre = createEl('pre');
+	pre.createEl('code', { text: c.text, cls: c.lang ? `language-${c.lang}` : undefined });
+	const copy = pre.createEl('button', { cls: 'copy-code-button', attr: { 'aria-label': 'Copy' } });
+	setIcon(copy, 'copy');
+	copy.onclick = () => void navigator.clipboard.writeText(c.text);
+	return pre;
 }
 
 function resultText(content: unknown): string {

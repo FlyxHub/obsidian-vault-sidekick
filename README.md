@@ -317,6 +317,9 @@ To change these settings, open **Settings > Vault Sidekick**.
 - **Edits need your approval.** By default, Claude asks before it creates or changes a note.
 - **Shell commands and web access are off.** When you turn them on, Claude asks before each use.
 - **Connectors ask first.** Claude asks before each connector action.
+- **Replies can't run anything.** The chat shows code in Claude's replies as plain text, so other
+  plugins, such as Dataview, don't run it. Images and HTML in replies appear as links and text, so a
+  reply can't load anything from the internet.
 
 > **Caution:** Shell commands aren't limited to your vault. A shell command can read or change any
 > file that your user account can access. Turn on **Allow shell commands** only if you need it, and
@@ -481,6 +484,7 @@ After each build, turn the plugin off and on in Obsidian to load the new version
 | `src/chatView.ts` | The chat pane: messages, streaming, tool activity, approvals, and errors. |
 | `src/claude.ts` | Starts Claude Code for each message and enforces the vault boundary. |
 | `src/vaultPath.ts` | The checks that keep Claude inside the vault. |
+| `src/replyMarkdown.ts` | Keeps code, images, and HTML in Claude's replies from running or loading anything. |
 | `src/settings.ts` | The settings tab. |
 | `src/skills.ts` | Asks Claude to load skills that are named partway through a message. |
 | `styles.css` | The chat pane's styles, based on your theme's colors. |
