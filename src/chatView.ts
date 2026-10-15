@@ -837,7 +837,7 @@ async function restoreCode(el: HTMLElement, code: Code[]) {
 	}
 	const blocks = el.querySelectorAll<HTMLElement>('pre > code[class^="language-"]');
 	if (!blocks.length) return;
-	const prism = await loadPrism();
+	const prism = (await loadPrism()) as { highlightElement(el: Element): void }; // typed `any` in obsidian.d.ts
 	blocks.forEach((b) => prism.highlightElement(b));
 }
 
