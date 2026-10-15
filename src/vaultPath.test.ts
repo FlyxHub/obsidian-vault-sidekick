@@ -52,7 +52,8 @@ test('writes to protected folders are denied', () => {
 	assert.ok(deny('Write', { file_path: '.Claude/settings.json' })); // not there yet, so no real case to resolve to
 });
 
-test('network paths outside the vault are denied without being looked up', () => {
+// UNC paths are Windows-only; on Linux '\' is a filename character and '//' is just '/'.
+test('network paths outside the vault are denied without being looked up', { skip: process.platform !== 'win32' }, () => {
 	const real = fs.realpathSync.native;
 	const looked: string[] = [];
 	fs.realpathSync.native = ((p: string) => (looked.push(p), real(p))) as typeof real;
