@@ -437,9 +437,10 @@ export class ChatView extends ItemView {
 	private async canUseTool(tool: string, input: Record<string, unknown>, opts: PermissionOptions, vault: string): Promise<PermissionResult> {
 		const allow: PermissionResult = { behavior: 'allow', updatedInput: input };
 		const autoEdit = EDIT_TOOLS.has(tool) && this.plugin.settings.approvalMode === 'auto';
-		if (NEVER_ASK.has(tool) || autoEdit || this.chat.allowedTools.has(tool)) return allow;
+		const key = approvalKey(tool, input);
+		if (NEVER_ASK.has(tool) || autoEdit || this.chat.allowedTools.has(key)) return allow;
 		const choice = await this.askPermission(tool, input, opts, vault);
-		if (choice === 'chat') this.chat.allowedTools.add(tool);
+		if (choice === 'chat') this.chat.allowedTools.add(key);
 		return choice === 'deny' ? { behavior: 'deny', message: 'The user declined this action.' } : allow;
 	}
 
@@ -470,7 +471,8 @@ export class ChatView extends ItemView {
 
 			const button = (text: string, cls: string, onClick: () => void) => (buttons.createEl('button', { cls: `claude-btn ${cls}`, text }).onclick = onClick);
 			button('Allow once', 'mod-primary', () => finish('once', 'Allowed'));
-			button('Allow for this chat', '', () => finish('chat', 'Allowed for this chat'));
+			const scope = tool === 'Bash' ? 'this command' : tool === 'WebFetch' ? hostOf(input.url) : '';
+			button(scope ? `Allow ${scope} for this chat` : 'Allow for this chat', '', () => finish('chat', 'Allowed for this chat'));
 			button('Deny', 'mod-quiet', () => finish('deny', 'Denied'));
 			card.scrollIntoView({ block: 'nearest' }); // needs attention even if the user scrolled up
 		});
@@ -758,6 +760,25 @@ function formatReset(unixSeconds: number): string {
 	return d.toDateString() === new Date().toDateString()
 		? `at ${d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
 		: `on ${d.toLocaleString([], { weekday: 'long', hour: 'numeric', minute: '2-digit' })}`;
+}
+
+/**
+ * What "Allow for this chat" approves. Shell commands and web fetches aren't confined to the vault, so
+ * approving one mustn't approve whatever a later prompt injection asks for: they're keyed by the exact
+ * command and by the site.
+ */
+function approvalKey(tool: string, input: Record<string, unknown>): string {
+	if (tool === 'Bash') return `Bash\0${String(input.command)}`;
+	if (tool === 'WebFetch') return `WebFetch\0${hostOf(input.url)}`;
+	return tool;
+}
+
+function hostOf(url: unknown): string {
+	try {
+		return new URL(String(url)).host;
+	} catch {
+		return String(url);
+	}
 }
 
 function permissionTitle(tool: string, input: Record<string, unknown>, vault: string, displayName?: string): string {

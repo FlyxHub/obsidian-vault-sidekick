@@ -14,7 +14,7 @@ export interface ChatState {
 	title?: string; // first line of the first message
 	messagesEl: HTMLElement;
 	component: Component; // owns rendered markdown children; unloaded on New Chat
-	allowedTools: Set<string>; // "Allow for this chat"
+	allowedTools: Set<string>; // "Allow for this chat": tool names, or per-command/per-site keys (see approvalKey)
 }
 
 export default class VaultSidekick extends Plugin {

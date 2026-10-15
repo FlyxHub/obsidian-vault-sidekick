@@ -200,7 +200,8 @@ the card shows the old text in red and the new text in green. Choose one of the 
 
 - **Allow once:** allows this change.
 - **Allow for this chat:** allows this kind of change, such as editing notes, until you start a new
-  chat.
+  chat. For shell commands, it allows only the same command again. For web pages, it allows only
+  pages on the same site.
 - **Deny:** blocks the change. Claude sees that you denied it and continues.
 
 To let Claude edit without asking, open the menu on the left side below the message box, and then

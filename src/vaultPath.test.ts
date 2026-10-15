@@ -48,7 +48,21 @@ test('writes to protected folders are denied', () => {
 	assert.ok(deny('Edit', { file_path: '.obsidian/app.json' }));
 	assert.ok(deny('Write', { file_path: path.join(vault, '.git', 'config') }));
 	assert.ok(deny('Write', { file_path: '.claude/settings.json' }));
-	if (process.platform === 'win32') assert.ok(deny('Write', { file_path: '.OBSIDIAN/app.json' }));
+	assert.ok(deny('Write', { file_path: '.OBSIDIAN/app.json' }));
+	assert.ok(deny('Write', { file_path: '.Claude/settings.json' })); // not there yet, so no real case to resolve to
+});
+
+test('network paths outside the vault are denied without being looked up', () => {
+	const real = fs.realpathSync.native;
+	const looked: string[] = [];
+	fs.realpathSync.native = ((p: string) => (looked.push(p), real(p))) as typeof real;
+	try {
+		assert.ok(deny('Write', { file_path: '//leak.invalid/share/x.md' }));
+		assert.ok(deny('Read', { file_path: '\\\\?\\UNC\\leak.invalid\\share\\x.md' }));
+	} finally {
+		fs.realpathSync.native = real;
+	}
+	assert.deepEqual(looked.filter((p) => p.includes('leak.invalid')), []);
 });
 
 test('vaultRelative normalizes separators and case', () => {
