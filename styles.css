@@ -22,10 +22,11 @@
 	--cvc-del-bg: rgba(var(--color-red-rgb), 0.12);
 	--cvc-focus: var(--interactive-accent);
 	--cvc-shadow: var(--shadow-s);
+	/* Darker than the brand orange (#d97757) on purpose: the white send arrow gets ~3.9:1 contrast instead of ~3.1:1. */
 	--cvc-clay: #c96442;
 	--cvc-clay-hover: #b0563a;
-	--cvc-spark: #d97757;
-	--cvc-serif: Charter, 'Iowan Old Style', Georgia, serif; /* greeting only; Anthropic's own faces aren't licensed for bundling */
+	--cvc-spark: #d97757; /* the brand orange; the spark is decorative, so contrast doesn't limit it */
+	--cvc-serif: Lora, Georgia, serif; /* the brand's body face if installed, else its Georgia fallback; not bundled, since a plugin can only ship it as base64 in styles.css */
 
 	background: var(--cvc-bg);
 	color: var(--cvc-text);
