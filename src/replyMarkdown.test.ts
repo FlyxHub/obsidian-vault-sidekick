@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { inertMarkdown } from './replyMarkdown.ts';
 
-test('fenced blocks leave the markdown, wherever they sit and even unclosed', () => {
+void test('fenced blocks leave the markdown, wherever they sit and even unclosed', () => {
 	const { markdown, code } = inertMarkdown(
 		['Run this:', '```dataviewjs', "require('child_process')", '```', '- ```js', '  a < b', '  ```', '> ~~~', '> x', '> ~~~', '```py', 'streaming…'].join('\n'),
 	);
@@ -16,13 +16,13 @@ test('fenced blocks leave the markdown, wherever they sit and even unclosed', ()
 	]);
 });
 
-test('inline code leaves the markdown; leftover backticks are escaped', () => {
+void test('inline code leaves the markdown; leftover backticks are escaped', () => {
 	const { markdown, code } = inertMarkdown('Try `$=dv.current()` or ``a`b``, not ` this');
 	assert.deepEqual(code, [{ text: '$=dv.current()' }, { text: 'a`b' }]);
 	assert.doesNotMatch(markdown, /(?<!\\)`|\$=/);
 });
 
-test('images become links and HTML becomes text; escaped characters stay as they were', () => {
+void test('images become links and HTML becomes text; escaped characters stay as they were', () => {
 	const { markdown } = inertMarkdown('![x](https://e.example/p.png?q=1) ![[n]] <img src=x> <iframe> <!-- c --> \\![y](z) 1 < 2');
 	assert.doesNotMatch(markdown, /(?<!\\)!\[|<[a-z!]/i);
 	assert.match(markdown, /&#33;\[x\]\(https/);
