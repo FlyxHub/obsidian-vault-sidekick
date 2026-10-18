@@ -721,17 +721,17 @@ const connectorName = (name: string) => name.replace(/^claude\.ai /, '').split('
 function describeTool(name: string, input: Record<string, unknown>): [string, string, string] {
 	const mcp = mcpTool(name);
 	if (mcp) return ['plug', `${mcp.server}: ${mcp.tool}`, `${mcp.server}: ${mcp.tool}`];
-	const file = String(input.file_path ?? '').split(/[\\/]/).pop();
-	const tools: Record<string, [string, string, string, unknown]> = {
+	const file = str(input.file_path).split(/[\\/]/).pop();
+	const tools: Record<string, [string, string, string, string | undefined]> = {
 		Read: ['file-text', 'Reading', 'Read', file],
 		Edit: ['pencil', 'Editing', 'Edited', file],
 		Write: ['file-plus', 'Writing', 'Wrote', file],
-		Glob: ['folder-search', 'Finding', 'Found', input.pattern],
-		Grep: ['text-search', 'Searching for', 'Searched for', `“${input.pattern}”`],
-		Bash: ['terminal', 'Running', 'Ran', input.description ?? 'a command'],
-		WebFetch: ['globe', 'Fetching', 'Fetched', input.url],
-		WebSearch: ['search', 'Searching the web for', 'Searched the web for', `“${input.query}”`],
-		Skill: ['sparkles', 'Using skill', 'Used skill', input.skill],
+		Glob: ['folder-search', 'Finding', 'Found', str(input.pattern)],
+		Grep: ['text-search', 'Searching for', 'Searched for', `“${str(input.pattern)}”`],
+		Bash: ['terminal', 'Running', 'Ran', str(input.description) || 'a command'],
+		WebFetch: ['globe', 'Fetching', 'Fetched', str(input.url)],
+		WebSearch: ['search', 'Searching the web for', 'Searched the web for', `“${str(input.query)}”`],
+		Skill: ['sparkles', 'Using skill', 'Used skill', str(input.skill)],
 	};
 	const [icon, running, done, subject] = tools[name] ?? ['wrench', name, name, ''];
 	return [icon, `${running} ${subject}`.trim(), `${done} ${subject}`.trim()];
@@ -781,10 +781,15 @@ function hostOf(url: unknown): string {
 	}
 }
 
+/** A tool input field as text: tools send strings, but the input's type doesn't promise it. */
+function str(value: unknown): string {
+	return typeof value === 'string' ? value : (JSON.stringify(value) ?? '');
+}
+
 function permissionTitle(tool: string, input: Record<string, unknown>, vault: string, displayName?: string): string {
 	const mcp = mcpTool(tool);
 	if (mcp) return `Allow Claude to use ${displayName ?? mcp.tool} in ${mcp.server}?`;
-	const target = String(input.file_path ?? '');
+	const target = str(input.file_path);
 	const file = vaultRelative(target, vault) ?? target;
 	switch (tool) {
 		case 'Edit':
@@ -794,9 +799,9 @@ function permissionTitle(tool: string, input: Record<string, unknown>, vault: st
 		case 'Bash':
 			return 'Allow Claude to run a command?';
 		case 'WebFetch':
-			return `Allow Claude to fetch ${input.url}?`;
+			return `Allow Claude to fetch ${str(input.url)}?`;
 		case 'WebSearch':
-			return `Allow Claude to search the web for “${input.query}”?`;
+			return `Allow Claude to search the web for “${str(input.query)}”?`;
 		default:
 			return `Allow Claude to use ${tool}?`;
 	}
@@ -804,14 +809,14 @@ function permissionTitle(tool: string, input: Record<string, unknown>, vault: st
 
 function renderPermissionDetails(el: HTMLElement, tool: string, input: Record<string, unknown>) {
 	if (tool === 'Edit') {
-		el.createEl('pre', { cls: 'claude-diff-del', text: String(input.old_string ?? '') });
-		el.createEl('pre', { cls: 'claude-diff-add', text: String(input.new_string ?? '') });
+		el.createEl('pre', { cls: 'claude-diff-del', text: str(input.old_string) });
+		el.createEl('pre', { cls: 'claude-diff-add', text: str(input.new_string) });
 		if (input.replace_all) el.createDiv({ cls: 'claude-permission-note', text: 'Replaces every occurrence.' });
 	} else if (tool === 'Write') {
-		el.createEl('pre', { text: String(input.content ?? '') });
+		el.createEl('pre', { text: str(input.content) });
 	} else if (tool === 'Bash') {
-		el.createEl('pre', { text: String(input.command ?? '') });
-		if (input.description) el.createDiv({ cls: 'claude-permission-note', text: String(input.description) });
+		el.createEl('pre', { text: str(input.command) });
+		if (input.description) el.createDiv({ cls: 'claude-permission-note', text: str(input.description) });
 	} else if (tool !== 'WebFetch' && tool !== 'WebSearch') {
 		el.createEl('pre', { text: JSON.stringify(input, null, 2) });
 	}

@@ -1,0 +1,10 @@
+{
+	"name": "vault-sidekick-lint",
+	"private": true,
+	"type": "module",
+	"description": "Obsidian's review rules, installed apart from the plugin: they need TypeScript 5's API, and the plugin builds with TypeScript 7.",
+	"devDependencies": {
+		"eslint": "^9.39.5",
+		"eslint-plugin-obsidianmd": "^0.4.2"
+	}
+}

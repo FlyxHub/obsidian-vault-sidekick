@@ -18,7 +18,7 @@ fs.symlinkSync(path.join(outside, 'missing'), path.join(vault, 'dangling'), 'jun
 
 const deny = (tool: string, input: Record<string, unknown>) => denyReason(tool, input, vault, ['.obsidian', '.git', '.claude']);
 
-test('inside the vault is allowed', () => {
+void test('inside the vault is allowed', () => {
 	assert.equal(deny('Read', { file_path: 'Notes/a.md' }), undefined);
 	assert.equal(deny('Read', { file_path: path.join(vault, 'Notes', 'a.md') }), undefined);
 	assert.equal(deny('Write', { file_path: path.join(vault, 'Notes', 'new', 'b.md') }), undefined);
@@ -29,7 +29,7 @@ test('inside the vault is allowed', () => {
 	assert.equal(deny('mcp__github__get_file_contents', { path: '/README.md' }), undefined); // connector paths aren't local
 });
 
-test('outside the vault is denied', () => {
+void test('outside the vault is denied', () => {
 	assert.ok(deny('Read', { file_path: path.join(outside, 'x.md') }));
 	assert.ok(deny('Read', { file_path: '../outside/x.md' }));
 	assert.ok(deny('Read', { file_path: '~/x.md' }));
@@ -44,7 +44,7 @@ test('outside the vault is denied', () => {
 	assert.ok(deny('Grep', { pattern: 'x', glob: '..\\*.md' }));
 });
 
-test('writes to protected folders are denied', () => {
+void test('writes to protected folders are denied', () => {
 	assert.ok(deny('Edit', { file_path: '.obsidian/app.json' }));
 	assert.ok(deny('Write', { file_path: path.join(vault, '.git', 'config') }));
 	assert.ok(deny('Write', { file_path: '.claude/settings.json' }));
@@ -53,7 +53,7 @@ test('writes to protected folders are denied', () => {
 });
 
 // UNC paths are Windows-only; on Linux '\' is a filename character and '//' is just '/'.
-test('network paths outside the vault are denied without being looked up', { skip: process.platform !== 'win32' }, () => {
+void test('network paths outside the vault are denied without being looked up', { skip: process.platform !== 'win32' }, () => {
 	const real = fs.realpathSync.native;
 	const looked: string[] = [];
 	fs.realpathSync.native = ((p: string) => (looked.push(p), real(p))) as typeof real;
@@ -66,7 +66,7 @@ test('network paths outside the vault are denied without being looked up', { ski
 	assert.deepEqual(looked.filter((p) => p.includes('leak.invalid')), []);
 });
 
-test('vaultRelative normalizes separators and case', () => {
+void test('vaultRelative normalizes separators and case', () => {
 	assert.equal(vaultRelative(path.join(vault, 'Notes', 'a.md'), vault), 'Notes/a.md');
 	assert.equal(vaultRelative(path.join(outside, 'x.md'), vault), undefined);
 	// Backslash separators and case-insensitive paths are Windows-only; on Linux '\' is a filename character.
