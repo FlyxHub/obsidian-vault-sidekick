@@ -52,6 +52,14 @@ void test('writes to protected folders are denied', () => {
 	assert.ok(deny('Write', { file_path: '.Claude/settings.json' })); // not there yet, so no real case to resolve to
 });
 
+// NTFS stream syntax and trailing dots/spaces name the same folder only on Windows.
+void test('Windows aliases of protected folders are denied', { skip: process.platform !== 'win32' }, () => {
+	assert.ok(deny('Write', { file_path: '.git::$INDEX_ALLOCATION/config' }));
+	assert.ok(deny('Write', { file_path: '.claude./settings.json' }));
+	assert.ok(deny('Write', { file_path: '.obsidian /app.json' }));
+	assert.ok(deny('Write', { file_path: 'Notes/a.md:hidden' }));
+});
+
 // UNC paths are Windows-only; on Linux '\' is a filename character and '//' is just '/'.
 void test('network paths outside the vault are denied without being looked up', { skip: process.platform !== 'win32' }, () => {
 	const real = fs.realpathSync.native;

@@ -1,0 +1,24 @@
+# Weekly update PRs for the actions (keeps the SHA pins current) and both npm trees.
+# The cooldown matches .npmrc's min-release-age: nothing newer than a week is proposed.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+
+  - package-ecosystem: npm
+    directory: /lint
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
