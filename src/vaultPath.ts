@@ -38,7 +38,11 @@ export function vaultRelative(p: string, vault: string): string | undefined {
 	} catch {
 		return undefined; // can't tell where it leads (dangling link): treat as outside
 	}
-	return outside(rel) ? undefined : rel.split(path.sep).join('/');
+	const segs = rel.split(path.sep);
+	// Windows aliases a not-yet-existing name: '.git::$INDEX_ALLOCATION', '.git.' and '.git ' all create .git,
+	// slipping past the protected-folder check. Such names can't be real files there, so refuse them.
+	if (process.platform === 'win32' && segs.some((s) => /:|[. ]$/.test(s))) return undefined;
+	return outside(rel) ? undefined : segs.join('/');
 }
 
 /** Why this tool call must be blocked, or undefined if it stays inside the vault's allowed area. */
