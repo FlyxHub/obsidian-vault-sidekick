@@ -824,7 +824,7 @@ function renderPermissionDetails(el: HTMLElement, tool: string, input: Record<st
 
 /** Puts the code inertMarkdown() took out back into a rendered reply, as text no plugin has seen. */
 async function restoreCode(el: HTMLElement, code: Code[]) {
-	const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+	const walker = el.doc.createTreeWalker(el, NodeFilter.SHOW_TEXT);
 	const marked: Text[] = [];
 	while (walker.nextNode()) if (MARK.test((walker.currentNode as Text).data)) marked.push(walker.currentNode as Text);
 	for (const node of marked) {
